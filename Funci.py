@@ -60,7 +60,6 @@ def getAttributesName(layer):
 
     return header
 
-
 def getAttributesALL(layer):
 
     # check the type of layer
@@ -90,7 +89,6 @@ def getAttributesALL(layer):
 
     return attrib
 
-
 def getSpatRefRas(layer):
     # check type of layer
     if type(layer) is gdal.Dataset:
@@ -104,7 +102,6 @@ def getSpatRefRas(layer):
 
     #print(SPRef)
     return(SPRef)
-
 
 def getSpatRefVec(layer):
 
@@ -130,7 +127,6 @@ def getSpatRefVec(layer):
 
     #print(SPRef)
     return(SPRef)
-
 
 def getHexType(raster):
     if type(raster) is str:
@@ -166,8 +162,6 @@ def getRasCellFromXY(X, Y, raster):
     row = int((Y - gt[3]) / gt[5])
     return([col, row])
 
-
-
 # function that extracts extent and corner coordinates of a raster file - checked only with UTM projection
 def getcorners(single_ras):
     ds = gdal.Open(single_ras)
@@ -182,10 +176,7 @@ def getcorners(single_ras):
            'LowerLeftXY': [ext['Xmin'], ext['Ymin']]}
     return ext, coo
 
-
-
 # ## get minmax values of x,y of a raster(path) or a list with raster (paths)
-
 def getExtentRas(raster):
     if type(raster) is str:
         ds = gdal.Open(raster)
@@ -197,7 +188,6 @@ def getExtentRas(raster):
             'Ymin': gt[3] + (gt[5] * ds.RasterYSize),
             'Ymax': gt[3]}
     return ext
-
 
 def getExtentVec(shape):
     if type(shape) is str:
@@ -215,8 +205,6 @@ def getExtentVec(shape):
     return ext
 
 # ## get common bounding box dimensions for list of Extent_dictionaries
-
-
 def commonBoundsDim(extentList):
     # create empty dictionary with list slots for corner coordinates
     k = ['Xmin', 'Xmax', 'Ymin', 'Ymax']
@@ -233,10 +221,7 @@ def commonBoundsDim(extentList):
         res[k[i]] = j(res[k[i]])
     return res
 
-
 # ## get common bounding box coordinates for Extent_dictionaries
-
-
 def commonBoundsCoord(ext):
     if type(ext) is dict:
         ext = [ext]
@@ -253,8 +238,6 @@ def commonBoundsCoord(ext):
 
 # ## read in one or multiple raster as one or multiple subsets based on coordinates
 # ## optional: write away subsets and set NoData manually : only for single raster tiles at the moment!!!!!
-
-
 def rastersubbyCord(raster,ULx,ULy,LRx,LRy,storpath='none', nodata='fromimage'):
     # check storpath
     if storpath is not 'none':
@@ -320,8 +303,6 @@ def rastersubbyCord(raster,ULx,ULy,LRx,LRy,storpath='none', nodata='fromimage'):
 
     return res
 
-
-
 def reprojShapeEPSG(file, epsg):
     # create spatial reference object
     sref  = osr.SpatialReference()
@@ -350,7 +331,6 @@ def reprojShapeEPSG(file, epsg):
     shapeStor.Destroy()
     del ds
     return('reprojShape done :)')
-
 
 def reprojShapeSpatRefVec(file, SpatRefVec):
 
@@ -412,15 +392,12 @@ def BuildSnake(order):
     ffL = [subitem for sublist in fL for item in sublist for subitem in item]
     return ffL
 
-
 def ApplySnake(dict, gridsiz, snaki):
     for i in snaki:
         res = i(dict, gridsiz)
     return res
 
-
 # ## function centroid to polygon
-
 def boundingCentroidCoord(X, Y, celldim):
     if type(X) is not list:
         XX, YY = [X], [Y]
@@ -443,8 +420,6 @@ def boundingCentroidCoord(X, Y, celldim):
         res['llY'].append(j - celldim / 2)
 
     return res
-
-
 
 def movinWinni(rasterlist, win_names, funci, win_dim = 'none', storpath = 'none'):
     print(rasterlist)
@@ -512,13 +487,11 @@ def movinWinni(rasterlist, win_names, funci, win_dim = 'none', storpath = 'none'
                 del out_ds
     return(res)
 
-
 def Shanni(a):
     b = len(a)
     unique, counts = np.unique(a, return_counts=True) # np.count_nonzero
     res = np.sum((counts / b) * np.log(counts / b)) * -1
     return res
-
 
 def XYtoShape(XYdict, attributes, epsg, storpath, name, Stype):
     #get the keys of the attributes dictonary
@@ -578,7 +551,6 @@ def XYtoShape(XYdict, attributes, epsg, storpath, name, Stype):
     shapeStor.Destroy()
     return(print('XYtoShape done :)'))
 
-
 def getXYfromShape(shapefile):
     coo = dict.fromkeys(['X', 'Y'])
     coo['X'] = []
@@ -597,7 +569,6 @@ def getXYfromShape(shapefile):
 
     return(coo)
 
-
 def ShapeKiller(shape_path):
     if os.path.isfile(shape_path):
        os.remove(shape_path)
@@ -608,7 +579,6 @@ def ShapeKiller(shape_path):
 def RasterKiller(raster_path):
     if os.path.isfile(raster_path):
         os.remove(raster_path)
-
 
 def warpMODIS(hdfConti, storpath, epsg):
     if storpath.endswith('/'):
