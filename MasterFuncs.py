@@ -1,7 +1,8 @@
 from FloppyToolZ.Funci import *
 from scipy import optimize
 import joblib
-from joblib import Parallel, Delayed
+from joblib import Parallel, delayed
+# elayed
 
 # double logistic function
 def funci(x, p1, p2, p3, p4, p5, p6):
