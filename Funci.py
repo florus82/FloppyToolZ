@@ -18,8 +18,8 @@ def getFilelist(originpath, ftyp):
                 out.append(originpath + i)
             else:
                 out.append(originpath + '/' + i)
-        else:
-            print("non-matching file - {} - found".format(i.split('.')[-1]))
+        # else:
+        #     print("non-matching file - {} - found".format(i.split('.')[-1]))
     return out
 
 def getJulianDay(day, month, year):
@@ -28,12 +28,12 @@ def getJulianDay(day, month, year):
         keys = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
         vals = [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335]
         lookUp = dict(zip( keys, vals))
-        print('leap year')
+        #print('leap year')
     else:
         keys = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
         vals = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334]
         lookUp = dict(zip(keys, vals))
-        print('no leap year')
+        #print('no leap year')
     res = day + lookUp[month]
     return res
 
