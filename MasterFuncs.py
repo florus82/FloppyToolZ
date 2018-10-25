@@ -1,7 +1,6 @@
 from FloppyToolZ.Funci import *
 from scipy import optimize
 import joblib
-from joblib import Parallel, delayed
 
 # double logistic function
 def funci(x, p1, p2, p3, p4, p5, p6):
@@ -29,9 +28,9 @@ def getMinMaxMedianSAV(iterCSV, savfileConti):
     vals = [fil for fil in savfileConti]
     savi = dict(zip(keys, vals))
 
-    sav_min    = ['Min_r2_' + savi[str(it_min)].split('/')[-1].split('.')[0], joblib.load(savi[str(it_min)])]
-    sav_max    = ['Max_r2_' + savi[str(it_max)].split('/')[-1].split('.')[0], joblib.load(savi[str(it_max)])]
-    sav_median = ['Median_r2_' + savi[str(it_median)].split('/')[-1].split('.')[0], joblib.load(savi[str(it_median)])]
+    sav_min    = ['Min_r2_iteration_' + str(iterCSV.iloc[it_min]['Iteration']), joblib.load(savi[str(it_min+1)])]
+    sav_max    = ['Max_r2_iteration_' + str(iterCSV.iloc[it_max]['Iteration']), joblib.load(savi[str(it_max+1)])]
+    sav_median = ['Median_r2_iteration_' + str(iterCSV.iloc[it_max]['Iteration']), joblib.load(savi[str(it_median+1)])]
 
     return [sav_min, sav_max, sav_median]
 # erase NA-frame from numpy arrays
@@ -78,8 +77,7 @@ def time_seq(start_day, start_month, start_year, end_day, end_month, end_year):
 
     return [start, end]
 
-
-def PixelBreaker_BoneStorm(x):
+def PixelBreaker_BoneStorm(x, timelini, dummi):
     # create seasonal container
     SoS_conti = []
     EoS_conti = []
@@ -93,12 +91,12 @@ def PixelBreaker_BoneStorm(x):
     counter_start = 0
     counter_end   = 0
 
-    for seas in timelini:
+    for iteri, seas in enumerate(timelini):
         # get a timeframe subset
         counter_end += len(seas)
         sub_ndvi = x[counter_start + (all_len * 0) : counter_end + (all_len * 0)] # as NDVI,EVI,NBR scenes are stacked
-        sub_evi  = x[counter_start + (all_len * 1) : counter_end + (all_len * 0)] # this way
-        sub_nbr  = x[counter_start + (all_len * 2) : counter_end + (all_len * 0)]
+        sub_evi  = x[counter_start + (all_len * 1) : counter_end + (all_len * 1)] # this way
+        sub_nbr  = x[counter_start + (all_len * 2) : counter_end + (all_len * 2)]
         subby    = [sub_ndvi, sub_evi, sub_nbr]
         counter_start += len(seas)
 
@@ -122,7 +120,7 @@ def PixelBreaker_BoneStorm(x):
                 popt, pcov = optimize.curve_fit(funci,
                                                 doys, vivas, p0=[0.1023, 0.8802, 108.2, 7.596, 311.4, 7.473],
                                                 maxfev=100000000)
-                pred = funci(dummi[iti], popt[0], popt[1], popt[2], popt[3], popt[4], popt[5])
+                pred = funci(dummi[iteri], popt[0], popt[1], popt[2], popt[3], popt[4], popt[5])
                 dev1 = np.diff(pred)
                 SoS     = np.argmax(dev1) + 1
                 EoS     = np.argmin(dev1) + 1
@@ -141,13 +139,15 @@ def PixelBreaker_BoneStorm(x):
                 SeasLen_conti.append(SeasLen)
                 SeasAmp_conti.append(SeasAmp)
 
-    resi = np.asarray([np.median(SoS_conti), np.median(EoS_conti), np.median(SeasMax_conti), np.median(SeasMin_conti),
-                       np.median(SeasInt_conti), np.median(SeasLen_conti), np.median(SeasAmp_conti)])
+    resi = np.asarray([np.nanmedian(SoS_conti), np.nanmedian(EoS_conti), np.nanmedian(SeasMax_conti),
+                       np.nanmedian(SeasMin_conti), np.nanmedian(SeasInt_conti),
+                       np.nanmedian(SeasLen_conti), np.nanmedian(SeasAmp_conti)])
+    #print('Pixel done')
     return resi
 
-def PixelSmasher(tile_array, pixelbreakerFunci, timelini, dummi, storpath):
-    timelini = timelini + timelini + timelini # as there are three stacked VIs
-    dummi    = dummi + dummi + dummi # as there are three stacked VIs
-    SP_arr3d = np.apply_along_axis(pixelbreakerFunci,2, tile_array)
-    joblib.dump(SP_arr2d, storpath)
-    return print('Tile ' + storpath.split('/')[-1].split('.')[0] + ' smashed')
+def PixelSmasher(tile_path, pixelbreakerFunci, timelini, dummi, storpath):
+    print('start smashing')
+    tile_array = joblib.load(tile_path)
+    SP_arr3d = np.apply_along_axis(pixelbreakerFunci,2, tile_array, timelini, dummi)
+    joblib.dump(SP_arr3d, storpath)
+    return print(storpath.split('/')[-1].split('.')[0] + ' smashed')
