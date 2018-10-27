@@ -1,6 +1,6 @@
 from FloppyToolZ.Funci import *
 from scipy import optimize
-import joblib
+from sklearn.externals import joblib
 
 # double logistic function
 def funci(x, p1, p2, p3, p4, p5, p6):
@@ -95,9 +95,9 @@ def PixelBreaker_BoneStorm(x, timelini, dummi):
         # get a timeframe subset
         counter_end += len(seas)
         sub_ndvi = x[counter_start + (all_len * 0) : counter_end + (all_len * 0)] # as NDVI,EVI,NBR scenes are stacked
-        sub_evi  = x[counter_start + (all_len * 1) : counter_end + (all_len * 1)] # this way
-        sub_nbr  = x[counter_start + (all_len * 2) : counter_end + (all_len * 2)]
-        subby    = [sub_ndvi, sub_evi, sub_nbr]
+        #sub_evi  = x[counter_start + (all_len * 1) : counter_end + (all_len * 1)] # this way
+        #sub_nbr  = x[counter_start + (all_len * 2) : counter_end + (all_len * 2)]
+        subby    = [sub_ndvi]#, sub_evi, sub_nbr]
         counter_start += len(seas)
 
         # ################################## fit function and derive seasonal parameter for each VI subset
@@ -107,7 +107,7 @@ def PixelBreaker_BoneStorm(x, timelini, dummi):
             doys  = np.asarray(seas)[np.logical_not(np.isnan(m))]
             vivas = m[np.logical_not(np.isnan(m))]
 
-            if len(doys) == 0 or len(vivas) == 0:
+            if len(doys) < 10 or len(vivas) < 10:
                 SoS_conti.append(np.nan)
                 EoS_conti.append(np.nan)
                 SeasMax_conti.append(np.nan)
