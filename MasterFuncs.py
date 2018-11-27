@@ -23,7 +23,10 @@ def ModTimtoInt(timecodelist):
 def getMinMaxMedianSAV(iterCSV, savfileConti):
     it_min = np.where(iterCSV['r2'] == np.min(iterCSV['r2']))[0][0]
     it_max = np.where(iterCSV['r2'] == np.max(iterCSV['r2']))[0][0]
-    it_median = np.asarray(np.where(round(iterCSV['r2'], 3) == round(np.median(iterCSV['r2']), 3)))[0][0]
+    if len(np.asarray(np.where(round(iterCSV['r2'], 3) == round(np.median(iterCSV['r2']), 3))).flatten()) == 0:
+        it_median = np.asarray(np.where(round(iterCSV['r2'], 2) == round(np.median(iterCSV['r2']), 2)))[0][0]
+    else:
+        it_median = np.asarray(np.where(round(iterCSV['r2'], 3) == round(np.median(iterCSV['r2']), 3)))[0][0]
     keys = [fil.split('_')[-1].split('.')[0] for fil in savfileConti]
     vals = [fil for fil in savfileConti]
     savi = dict(zip(keys, vals))
