@@ -22,15 +22,17 @@ def ModTimtoInt(timecodelist):
 def getMinMaxMedianSAV(iterCSV, savfileConti):
     it_min = np.where(iterCSV['r2'] == np.min(iterCSV['r2']))[0][0]
     it_max = np.where(iterCSV['r2'] == np.max(iterCSV['r2']))[0][0]
-    it_median = np.random.choice(np.asarray(np.where(round(iterCSV['r2'], 2) == round(np.median(iterCSV['r2']), 2)))[0])
-
+    if len(np.asarray(np.where(round(iterCSV['r2'], 3) == round(np.median(iterCSV['r2']), 3))).flatten()) == 0:
+        it_median = np.asarray(np.where(round(iterCSV['r2'], 2) == round(np.median(iterCSV['r2']), 2)))[0][0]
+    else:
+        it_median = np.asarray(np.where(round(iterCSV['r2'], 3) == round(np.median(iterCSV['r2']), 3)))[0][0]
     keys = [fil.split('_')[-1].split('.')[0] for fil in savfileConti]
     vals = [fil for fil in savfileConti]
     savi = dict(zip(keys, vals))
 
-    sav_min    = ['Min_r2_iteration_' + str(iterCSV.iloc[it_min]['Iteration']), joblib.load(savi[str(it_min+1)])]
-    sav_max    = ['Max_r2_iteration_' + str(iterCSV.iloc[it_max]['Iteration']), joblib.load(savi[str(it_max+1)])]
-    sav_median = ['Median_r2_iteration_' + str(iterCSV.iloc[it_max]['Iteration']), joblib.load(savi[str(it_median+1)])]
+    sav_min    = ['Min_r2_iteration_' + str(iterCSV.iloc[it_min]['Iteration']), joblib.load(savi[str(it_min+1)]), iterCSV.iloc[it_min]['rmse'], iterCSV.iloc[it_min]['r2']]
+    sav_max    = ['Max_r2_iteration_' + str(iterCSV.iloc[it_max]['Iteration']), joblib.load(savi[str(it_max+1)]), iterCSV.iloc[it_max]['rmse'], iterCSV.iloc[it_max]['r2']]
+    sav_median = ['Median_r2_iteration_' + str(iterCSV.iloc[it_median]['Iteration']), joblib.load(savi[str(it_median+1)]), iterCSV.iloc[it_median]['rmse'], iterCSV.iloc[it_median]['r2']]
 
     return [sav_min, sav_max, sav_median]
 # erase NA-frame from numpy arrays
@@ -53,6 +55,7 @@ def shrinkNAframe(na_array):
     elif c[0] ==0 and c[-1] == (cols-1): # first and last column contain nans --> only middle needs to be read as array
         seq = [i for i in range(len(c))]
         xoff = [i for i in range(len(c)) if seq[i] != c[i]]
+        xoff = xoff[0]
         xcount = cols - len(c)
 
     if (len(r)==0):
@@ -67,9 +70,11 @@ def shrinkNAframe(na_array):
     elif r[0] ==0 and r[-1] == (rows-1):
         seq = [i for i in range(len(r))]
         yoff = [i for i in range(len(r)) if seq[i] != r[i]]
+        yoff = yoff[0]
         ycount = rows - len(r)
 
     return [xoff, yoff, xcount, ycount]
+
 # create growing seasons and frowing fits (jul-jul) combos
 def time_seq(start_day, start_month, start_year, end_day, end_month, end_year):
     start = int(str(start_year) + str(getJulianDay(start_day, start_month, start_year)))
@@ -78,6 +83,17 @@ def time_seq(start_day, start_month, start_year, end_day, end_month, end_year):
     return [start, end]
 
 def PixelBreaker_BoneStorm(x, timelini, dummi):
+    # smoother for timeline
+    def mov_av(x):
+        sm = x.copy()
+        if np.isnan(sm[0]) == True:
+            sm[0] = np.nanmin(sm)
+        if np.isnan(sm[-1]) == True:
+            sm[-1] = np.nanmin(sm)
+        for i in range(1, len(x) - 1):
+            sm[i] = np.nanmean(sm[i - 1:i + 2])
+        return (sm)
+
     # create seasonal container
     SoS_conti = []
     EoS_conti = []
@@ -102,7 +118,7 @@ def PixelBreaker_BoneStorm(x, timelini, dummi):
 
         # ################################## fit function and derive seasonal parameter for each VI subset
         for sub in subby:
-            m = sub
+            m = mov_av(sub)
             # mask nan from m; mask also the values from the time object, which is passed on to optimize.curve_fit
             doys  = np.asarray(seas)[np.logical_not(np.isnan(m))]
             vivas = m[np.logical_not(np.isnan(m))]

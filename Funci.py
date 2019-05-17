@@ -594,3 +594,50 @@ def warpMODIS(hdfConti, storpath, epsg):
         in_ds  = gdal.Open(file)
         out_ds = storpath + '_'.join(hdfConti.split('/')[-1].split('.')[:-1]) + '_' + sdslist[i].split('"')[2].split(':')[-1] + '.tif'
         gdal.Warp(out_ds, in_ds, dstSRS = 'EPSG:' + str(epsg))
+
+def points_to_Center(points, refimage):
+
+    # check if file already exists; if yes, delete it
+    if os.path.isfile('/'.join(points.split('/')[:-1]) + '/' + points.split('/')[-1].split('.')[0] + '_centerCoord' + '.shp'):
+        ShapeKiller('/'.join(points.split('/')[:-1]) + '/' + points.split('/')[-1].split('.')[0] + '_centerCoord' + '.shp')
+    # open the shapefile
+    ds = ogr.Open(points, 0)
+    driv = ogr.GetDriverByName('ESRI Shapefile')  # will select the driver foir our shp-file creation.
+    shapeStor = driv.CreateDataSource('/'.join(points.split('/')[:-1]))
+    # get first layer (assuming ESRI is standard) & and create empty output layer with
+    in_lyr = ds.GetLayer()
+    out_lyr = shapeStor.CreateLayer(points.split('/')[-1].split('.')[0] + '_centerCoord',
+                                    getSpatRefVec(points), in_lyr.GetGeomType())
+
+    # open reference image
+    rasti = gdal.Open(refimage)
+    rast = rasti.GetGeoTransform()
+    refX = rast[0]
+    refY = rast[3]
+    grid_size = rast[1]
+
+    # create attribute field
+    out_lyr.CreateFields(in_lyr.schema)
+    # with attributes characteristics
+    out_feat = ogr.Feature(out_lyr.GetLayerDefn())
+
+    # iterate over features
+    for in_feat in in_lyr:
+        geomX = in_feat.geometry().GetX()
+        geomY = in_feat.geometry().GetY()
+
+        # finding close center coordinate
+        Xstart = refX - (math.floor((refX - geomX) / grid_size) * grid_size) - 15
+        Ystart = refY - (math.floor((refY - geomY) / grid_size) * grid_size) - 15
+
+        geom = ogr.Geometry(ogr.wkbPoint)
+        geom.AddPoint(Xstart, Ystart)
+
+        out_feat.SetGeometry(geom)
+
+        for i in range(in_feat.GetFieldCount()):
+            out_feat.SetField(i, in_feat.GetField(i))
+        out_lyr.CreateFeature(out_feat)
+    shapeStor.Destroy()
+    del ds
+    return('CenterCoords calculated :)')
