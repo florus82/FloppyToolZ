@@ -7,7 +7,7 @@ import math
 import zipfile
 import struct
 import datetime as dt
-# import pandas as pd
+import pandas as pd
 
 def getFilelist(originpath, ftyp):
     files = os.listdir(originpath)
@@ -493,8 +493,7 @@ def Shanni(a):
     res = np.sum((counts / b) * np.log(counts / b)) * -1
     return res
 
-def XYtoShape(XYdict, attributes, epsg, storpath, name, Stype):
-    #get the keys of the attributes dictonary
+def XYtoShape(XYdict, attributes, epsg, storpath, name, Stype):    #get the keys of the attributes dictonary
     attribs = []
     for k, v in attributes.items():
         attribs.append(k)
@@ -505,9 +504,11 @@ def XYtoShape(XYdict, attributes, epsg, storpath, name, Stype):
         XYkeys.append(k)
 
     # create SpatialReference from given epsg
-    sref = osr.SpatialReference()
-    sref.ImportFromEPSG(epsg)
-
+    if type(epsg) is int:
+        sref = osr.SpatialReference()
+        sref.ImportFromEPSG(epsg)
+    else:
+        sref = epsg
     # create the empty shapefile with given name at given location; the Stype can be point or poly so far
     driver = ogr.GetDriverByName('ESRI Shapefile')
     shapeStor = driver.CreateDataSource(storpath)
@@ -549,7 +550,7 @@ def XYtoShape(XYdict, attributes, epsg, storpath, name, Stype):
                 out_feat.SetField(j, attributes[attribs[j]][i])
             out_lyr.CreateFeature(out_feat)
     shapeStor.Destroy()
-    return(print('XYtoShape done :)'))
+    return('XYtoShape done :)')
 
 def getXYfromShape(shapefile):
     coo = dict.fromkeys(['X', 'Y'])
