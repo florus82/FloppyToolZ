@@ -601,14 +601,6 @@ def points_to_Center(points, refimage):
     # check if file already exists; if yes, delete it
     if os.path.isfile('/'.join(points.split('/')[:-1]) + '/' + points.split('/')[-1].split('.')[0] + '_centerCoord' + '.shp'):
         ShapeKiller('/'.join(points.split('/')[:-1]) + '/' + points.split('/')[-1].split('.')[0] + '_centerCoord' + '.shp')
-    # open the shapefile
-    ds = ogr.Open(points, 0)
-    driv = ogr.GetDriverByName('ESRI Shapefile')  # will select the driver foir our shp-file creation.
-    shapeStor = driv.CreateDataSource('/'.join(points.split('/')[:-1]))
-    # get first layer (assuming ESRI is standard) & and create empty output layer with
-    in_lyr = ds.GetLayer()
-    out_lyr = shapeStor.CreateLayer(points.split('/')[-1].split('.')[0] + '_centerCoord',
-                                    getSpatRefVec(points), in_lyr.GetGeomType())
 
     # open reference image
     rasti = gdal.Open(refimage)
@@ -617,6 +609,15 @@ def points_to_Center(points, refimage):
     refY = rast[3]
     grid_size = rast[1]
 
+    # open the shapefile
+    ds = ogr.Open(points, 0)
+    driv = ogr.GetDriverByName('ESRI Shapefile')  # will select the driver foir our shp-file creation.
+    shapeStor = driv.CreateDataSource('/'.join(points.split('/')[:-1]))
+    # get first layer (assuming ESRI is standard) & and create empty output layer with
+    in_lyr = ds.GetLayer()
+    out_lyr = shapeStor.CreateLayer(points.split('/')[-1].split('.')[0] + '_centerCoord',
+                                    getSpatRefRas(refimage), in_lyr.GetGeomType())
+
     # create attribute field
     out_lyr.CreateFields(in_lyr.schema)
     # with attributes characteristics
@@ -624,12 +625,16 @@ def points_to_Center(points, refimage):
 
     # iterate over features
     for in_feat in in_lyr:
-        geomX = in_feat.geometry().GetX()
-        geomY = in_feat.geometry().GetY()
+        infeatC = in_feat.geometry().Clone()
+        transF = osr.CoordinateTransformation(getSpatRefVec(points), getSpatRefRas(refimage))
+        infeatC.Transform(transF)
+
+        geomX = infeatC.GetX()
+        geomY = infeatC.GetY()
 
         # finding close center coordinate
-        Xstart = refX - (math.floor((refX - geomX) / grid_size) * grid_size) - 15
-        Ystart = refY - (math.floor((refY - geomY) / grid_size) * grid_size) - 15
+        Xstart = refX - (math.floor((refX - geomX) / grid_size) * grid_size) - (grid_size/2)
+        Ystart = refY - (math.floor((refY - geomY) / grid_size) * grid_size) - (grid_size/2)
 
         geom = ogr.Geometry(ogr.wkbPoint)
         geom.AddPoint(Xstart, Ystart)
@@ -642,3 +647,21 @@ def points_to_Center(points, refimage):
     shapeStor.Destroy()
     del ds
     return('CenterCoords calculated :)')
+
+
+def dictOrder(dicti, Key1, Key2 = 'none'):
+
+    if Key2 is not 'none':
+        s = np.lexsort((dicti[Key2], dicti[Key1]))
+    else:
+        s = np.argsort(dicti[Key1])
+
+    new_k = []
+    new_v = []
+    for k in dicti.keys():
+        new_k.append(k)
+        new_v.append([dicti[k][i] for i in s])
+
+    new_dicti = dict(zip(new_k, new_v))
+
+    return(new_dicti)
