@@ -665,3 +665,30 @@ def dictOrder(dicti, Key1, Key2 = 'none'):
     new_dicti = dict(zip(new_k, new_v))
 
     return(new_dicti)
+
+
+def SHP_cutter(shape, cutter, storpath):
+    # load shapefile & create new one with UniqueID
+    drivSHP = ogr.GetDriverByName('ESRI Shapefile')
+    shp = ogr.Open(shape, 0)
+    shp_lyr = shp.GetLayer()
+
+    noFeat = shp_lyr.GetFeatureCount()
+
+    counter = [i for i in range(0, noFeat - 1, int(noFeat / cutter))]
+    counter.append(noFeat)
+
+    for i in range(len(counter) - 1):
+        shapeStor = drivSHP.CreateDataSource(storpath)
+        out_lyr = shapeStor.CreateLayer('temp_' + str(i), getSpatRefVec(shp), shp_lyr.GetGeomType())
+        out_lyr.CreateFields(shp_lyr.schema)
+
+        for j in range(counter[i], counter[i + 1], 1):
+            feat = shp_lyr.GetFeature(j)
+            geom = feat.geometry().Clone()
+            out_feat = ogr.Feature(out_lyr.GetLayerDefn())
+            out_feat.SetGeometry(geom)
+            for i in range(feat.GetFieldCount()):
+                out_feat.SetField(i, feat.GetField(i))
+            out_lyr.CreateFeature(out_feat)
+        shapeStor.Destroy()

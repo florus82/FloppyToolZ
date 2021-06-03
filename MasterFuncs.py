@@ -1,14 +1,15 @@
 from FloppyToolZ.Funci import *
 from scipy import optimize
 from sklearn.externals import joblib
+from joblib import Parallel, delayed
 
 # double logistic function
 def funci(x, p1, p2, p3, p4, p5, p6):
     return p1 +p2 * ((1 / (1 + np.exp((p3 - x) / p4))) - (1 / (1 + np.exp((p5 - x) / p6))))
 # scale MODIS dates betwee 1 and 365/366
-def ModTimtoInt(timecodelist):
+def ModTimtoInt(timecodelist, timesetstart):
     leap_years = [str(i) for i in range(1960, 2024, 4)]
-    if str(timecodelist[0])[0:4] in leap_years or str(timecodelist[-1])[0:4] in leap_years:
+    if (str(timecodelist[0])[0:4] in leap_years and int(str(timecodelist[0])[4:8])<60) or (str(timecodelist[-1])[0:4] in leap_years and int(str(timecodelist[-1])[4:8])<60):
         lp = 366
     else:
         lp = 365
@@ -16,7 +17,8 @@ def ModTimtoInt(timecodelist):
     jdays1 = [int(str(d)[4:7]) for d in timecodelist if str(d)[3] == str(timecodelist[0])[3]]
     jdays2 = [int(str(d)[4:7])+lp for d in timecodelist if str(d)[3] != str(timecodelist[0])[3]]
     jdays  = jdays1 + jdays2
-    jdays  = [i-(jdays[0]-1) for i in jdays]
+    offset = jdays1[0] - int(str(timesetstart)[-3:])
+    jdays  = [i-(jdays[0]-1) + offset for i in jdays]
     return [jdays, [i for i in range(1,lp+1, 1)]]
 # get sav files for runs with min/max/median r2 performance
 def getMinMaxMedianSAV(iterCSV, savfileConti):
@@ -161,9 +163,105 @@ def PixelBreaker_BoneStorm(x, timelini, dummi):
     #print('Pixel done')
     return resi
 
-def PixelSmasher(tile_path, pixelbreakerFunci, timelini, dummi, storpath):
-    print('start smashing')
-    tile_array = joblib.load(tile_path)
-    SP_arr3d = np.apply_along_axis(pixelbreakerFunci,2, tile_array, timelini, dummi)
-    joblib.dump(SP_arr3d, storpath)
-    return print(storpath.split('/')[-1].split('.')[0] + ' smashed')
+def PixelBreaker_BoneStorm_2_0(x, timelini, dummi):
+    # smoother for timeline
+    def mov_av(x):
+        sm = x.copy()
+        if np.isnan(sm[0]) == True:
+            sm[0] = np.nanmin(sm)
+        if np.isnan(sm[-1]) == True:
+            sm[-1] = np.nanmin(sm)
+        for i in range(1, len(x) - 1):
+            sm[i] = np.nanmean(sm[i - 1:i + 2])
+        return (sm)
+
+    # create seasonal container
+    SoS_conti = []
+    EoS_conti = []
+    SeasMax_conti = []
+    SeasMin_conti = []
+    SeasInt_conti = []
+    SeasLen_conti = []
+    SeasAmp_conti = []
+
+    all_len = sum([len(ii) for ii in timelini]) # this equal to the number of scenes for all timeframes
+    counter_start = 0
+    counter_end   = 0
+
+    for iteri, seas in enumerate(timelini):
+        # get a timeframe subset
+        counter_end += len(seas)
+        sub = x[counter_start + (all_len * 0): counter_end + (all_len * 0)]
+        counter_start += len(seas)
+        # ################################## fit function and derive seasonal parameter for each VI subset
+        m = mov_av(sub)
+        # mask nan from m; mask also the values from the time object, which is passed on to optimize.curve_fit
+        doys = np.asarray(seas)[np.logical_not(np.isnan(m))]
+        vivas = m[np.logical_not(np.isnan(m))]
+
+        if len(doys) < 10 or len(vivas) < 10 or np.isinf(m).any():
+            SoS_conti.append(np.nan)
+            EoS_conti.append(np.nan)
+            SeasMax_conti.append(np.nan)
+            SeasMin_conti.append(np.nan)
+            SeasInt_conti.append(np.nan)
+            SeasLen_conti.append(np.nan)
+            SeasAmp_conti.append(np.nan)
+
+        else:
+            try:
+                popt, pcov = optimize.curve_fit(funci,
+                                                doys, vivas, p0=[0.1023, 0.8802, 108.2, 7.596, 311.4, 7.473],
+                                                maxfev=100000000)
+                pred = funci(dummi[iteri], popt[0], popt[1], popt[2], popt[3], popt[4], popt[5])
+                dev1 = np.diff(pred)
+                SoS = np.argmax(dev1) + 1
+                EoS = np.argmin(dev1) + 1
+                SeasMax = round(max(pred), 2)
+                SeasMin = round(min(pred), 2)
+                SeasInt = round(np.trapz(funci(np.arange(SoS, EoS + 1, 1),
+                                               popt[0], popt[1], popt[2], popt[3], popt[4], popt[5])), 2)
+                SeasLen = EoS - SoS
+                SeasAmp = SeasMax - SeasMin
+
+                SoS_conti.append(SoS)
+                EoS_conti.append(EoS)
+                if SeasMax > 0.2 and SeasMax < 1:
+                    SeasMax_conti.append(SeasMax)
+                else:
+                    SeasMax_conti.append(np.nan)
+                if SeasMin > 0 and SeasMin <0.5:
+                    SeasMin_conti.append(SeasMin)
+                else:
+                    SeasMin_conti.append(np.nan)
+                SeasInt_conti.append(SeasInt)
+                SeasLen_conti.append(SeasLen)
+                SeasAmp_conti.append(SeasAmp)
+
+            except:
+                print(sub)
+                print(m)
+                print(doys)
+                print(vivas)
+
+    resi = np.asarray(SoS_conti + EoS_conti + SeasMax_conti +SeasMin_conti + SeasInt_conti + SeasLen_conti + SeasAmp_conti)
+    #print('Pixel done')
+    return resi
+
+def PixelSmasher(tile_path, pixelbreakerFunci, timelini, dummi, storpath, seasons):
+    print(tile_path)
+    if os.path.exists(('/').join(tile_path.split('/')[:-2]) + '/EoS/' + tile_path.split('/')[-1]) == True:
+        print('already smashed')
+    else:
+        tile_array = joblib.load(tile_path)
+        try:
+            SP_arr3d = np.apply_along_axis(pixelbreakerFunci,2, tile_array, timelini, dummi)
+            start = 0
+            stop = 3
+            dimi = SP_arr3d.shape[2]
+            for ee, indexi in enumerate(range(0,dimi,int(dimi/len(seasons)))):
+                SP_arr_sub = SP_arr3d[:,:,indexi:indexi+int(dimi/len(seasons))]
+                joblib.dump(SP_arr_sub, ('/').join(storpath.split('/')[:-1]) + '/' + seasons[ee] + '/' + storpath.split('/')[-1])
+            print(storpath.split('/')[-1].split('.')[0] + ' smashed')
+        except:
+            print(tile_path)
